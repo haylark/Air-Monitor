@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Donnybrook · Air &amp; Noise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #eef4ee;
+  --card: #ffffff;
+  --sidebar: #0c1e12;
+  --g-dark: #1a5c38;
+  --g-mid: #22c55e;
+  --g-light: #dcfce7;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --cyan: #06b6d4;
+  --purple: #a855f7;
+  --text: #0d1f0f;
+  --muted: #5b7d63;
+  --border: #dce9dc;
+  --r: 13px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: var(--sans); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+#wrap { display: flex; height: 100vh; }
+
+/* ── SIDEBAR ─────────────────────────── */
+aside {
+  width: 185px; flex-shrink: 0;
+  background: var(--sidebar);
+  display: flex; flex-direction: column;
+  padding: 20px 13px; gap: 0;
+}
+.logo { display: flex; align-items: center; gap: 9px; margin-bottom: 28px; }
+.logo-icon {
+  width: 33px; height: 33px; border-radius: 9px;
+  background: var(--g-mid);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.logo-icon svg { width: 17px; height: 17px; }
+.logo-text strong { display: block; color: #fff; font-size: 14px; font-weight: 700; line-height: 1.1; }
+.logo-text span { color: #3a6b4a; font-size: 10px; font-weight: 400; }
+.nl { color: #274733; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 7px; margin: 14px 0 5px; }
+.ni {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; border-radius: 9px;
+  color: #5a8268; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; margin-bottom: 1px;
+  transition: background .15s, color .15s;
+}
+.ni:hover { background: rgba(34,197,94,.08); color: #7acc97; }
+.ni.on { background: rgba(34,197,94,.15); color: var(--g-mid); }
+.ni .ic { font-size: 14px; width: 18px; text-align: center; }
+.stn {
+  margin-top: auto;
+  background: rgba(34,197,94,.07);
+  border: 1px solid rgba(34,197,94,.15);
+  border-radius: 10px; padding: 10px 11px;
+}
+.stn-lbl { font-size: 9px; color: #274733; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 5px; }
+.stn-name { color: #ddf0e5; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.dot { width: 6px; height: 6px; background: var(--g-mid); border-radius: 50%; flex-shrink: 0; animation: blink 2s ease-in-out infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+.stn-id { font-family: var(--mono); font-size: 9px; color: #3a5c47; }
+
+/* ── MAIN ─────────────────────────── */
+main {
+  flex: 1; overflow: hidden; min-width: 0;
+  display: flex; flex-direction: column;
+  padding: 16px 16px 14px 14px; gap: 10px;
+}
+
+/* BANNER */
+.banner {
+  flex-shrink: 0; border-radius: 9px; padding: 8px 13px;
+  font-size: 12px; font-weight: 600; display: none;
+  animation: fadein .3s ease;
+}
+@keyframes fadein { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+.banner.alert { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.banner.demo { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; }
+
+/* HEADER */
+.hdr { display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
+.hdr h1 { font-size: 22px; font-weight: 800; letter-spacing: -.5px; line-height: 1; }
+.hdr p { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+.hdr-r { display: flex; align-items: center; gap: 9px; }
+.clock {
+  background: var(--card); border: 1px solid var(--border); border-radius: 9px;
+  padding: 6px 12px; text-align: right;
+  box-shadow: 0 1px 3px rgba(0,20,0,.06);
+}
+.clock-t { font-family: var(--mono); font-size: 21px; font-weight: 500; color: var(--g-dark); letter-spacing: 1.5px; line-height: 1; }
+.clock-d { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--g-light); color: var(--g-dark);
+  font-size: 11px; font-weight: 700; padding: 7px 12px; border-radius: 20px;
+  transition: background .3s, color .3s;
+}
+
+/* STAT CARDS */
+.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; flex-shrink: 0; }
+.sc {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px; position: relative; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,20,0,.05);
+}
+.sc.feat { background: var(--g-dark); border-color: var(--g-dark); }
+.sc-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 7px; }
+.sc.feat .sc-lbl { color: rgba(255,255,255,.5); }
+.sc-val { font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--text); line-height: 1; }
+.sc.feat .sc-val { color: #fff; }
+.sc-unit { font-size: 10px; color: var(--muted); margin-top: 3px; }
+.sc.feat .sc-unit { color: rgba(255,255,255,.45); }
+.sc-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; margin-top: 7px; padding: 2px 7px; border-radius: 9px; }
+.sc-tag.g { background: var(--g-light); color: var(--g-dark); }
+.sc-tag.w { background: #fef3c7; color: #78350f; }
+.sc-tag.r { background: #fee2e2; color: #991b1b; }
+.sc-tag.n { background: var(--bg); color: var(--muted); }
+.sc-corner { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border: 1.5px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); }
+.sc.feat .sc-corner { border-color: rgba(255,255,255,.15); color: rgba(255,255,255,.4); }
+
+/* GAUGE ROW */
+.gauges { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; flex: 1; min-height: 0; }
+.gc {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px 8px; display: flex; flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,20,0,.05);
+  overflow: hidden; transition: border-color .3s;
+}
+.gc.warn { border-color: var(--amber); }
+.gc.danger { border-color: var(--red); background: #fffafa; }
+.gc-hdr { display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
+.gc-name { font-size: 13px; font-weight: 700; }
+.gc-sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.gc-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 3px 8px; border-radius: 8px; display: none; }
+.gc-badge.show { display: inline-block; }
+.gc-badge.warn { background: #fef3c7; color: #78350f; }
+.gc-badge.danger { background: #fee2e2; color: #991b1b; }
+.gc-body { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.gc-body svg { width: 100%; height: 100%; max-height: 180px; }
+.gc-foot { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; margin-top: 1px; }
+.gc-thresh { border-left: 2px dashed var(--amber); padding-left: 5px; color: var(--amber); font-weight: 600; }
+
+/* BOTTOM ROW */
+.bottom { display: grid; grid-template-columns: 1fr 255px; gap: 9px; flex-shrink: 0; }
+.cc, .bc {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,20,0,.05);
+}
+.row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+.sec-ttl { font-size: 12px; font-weight: 700; }
+.tabs { display: flex; background: var(--bg); border-radius: 7px; padding: 2px; gap: 2px; }
+.tab { padding: 3px 9px; border-radius: 5px; font-size: 10px; font-weight: 700; font-family: var(--sans); border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+.tab.on { background: white; color: var(--g-dark); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.leg { display: flex; gap: 11px; font-size: 9px; color: var(--muted); }
+.ld { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle; }
+#chartWrap { position: relative; width: 100%; height: 82px; }
+.xax { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+.bbadge { background: var(--red); color: white; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9px; font-family: var(--mono); }
+.bi { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.bi:last-child { border-bottom: none; }
+.bi-icon { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.bi-icon.w { background: #fef3c7; }
+.bi-icon.d { background: #fee2e2; }
+.bi-info { flex: 1; }
+.bi-name { font-size: 11px; font-weight: 700; }
+.bi-time { font-size: 9px; color: var(--muted); font-family: var(--mono); }
+.bi-val { font-family: var(--mono); font-size: 11px; color: var(--red); font-weight: 500; }
+.empty { text-align: center; padding: 14px 0; color: var(--muted); font-size: 11px; }
+.empty .icon { font-size: 20px; margin-bottom: 5px; }
+
+/* SPINNER */
+.spin { width: 22px; height: 22px; border: 2.5px solid var(--border); border-top-color: var(--g-mid); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="8.5" cy="8.5" r="3" fill="white"/>
+        <circle cx="8.5" cy="8.5" r="6.5" stroke="white" stroke-width="1.5" stroke-dasharray="2.2 1.8"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <strong>AirNoise</strong>
+      <span>Dublin Monitor</span>
+    </div>
+  </div>
+
+  <div class="nl">Menu</div>
+  <div class="ni on"><span class="ic">⬡</span> Dashboard</div>
+  <div class="ni"><span class="ic">◈</span> Historical</div>
+  <div class="ni"><span class="ic">◉</span> Alerts</div>
+  <div class="ni"><span class="ic">⬟</span> Map View</div>
+  <div class="nl">General</div>
+  <div class="ni"><span class="ic">⚙</span> Settings</div>
+  <div class="ni"><span class="ic">?</span> Help</div>
+
+  <div class="stn">
+    <div class="stn-lbl">Active Station</div>
+    <div class="stn-name"><span class="dot"></span>Donnybrook</div>
+    <div class="stn-id" id="stnId">Locating sensor…</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main>
+  <div class="banner" id="banner"></div>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div>
+      <h1>Air &amp; Noise Dashboard</h1>
+      <p>Donnybrook · Real-time environmental monitoring · DCC / EPA Sonitus Network</p>
+    </div>
+    <div class="hdr-r">
+      <div class="clock">
+        <div class="clock-t" id="ct">--:--:--</div>
+        <div class="clock-d" id="cd">-</div>
+      </div>
+      <div class="pill" id="pill">
+        <span id="pillDot" style="color:var(--g-mid)">●</span>
+        <span id="pillTxt">Connecting</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stats">
+    <div class="sc feat">
+      <div class="sc-corner">↗</div>
+      <div class="sc-lbl">Air Quality Index</div>
+      <div class="sc-val" id="sAqi">--</div>
+      <div class="sc-unit">NO₂ + PM₂.₅ composite</div>
+      <div class="sc-tag n" id="sAqiTag">Loading…</div>
+    </div>
+    <div class="sc">
+      <div class="sc-corner">↗</div>
+      <div class="sc-lbl">Live Noise</div>
+      <div class="sc-val" id="sNoise">--</div>
+      <div class="sc-unit">dB(A) LAeq</div>
+      <div class="sc-tag n" id="sNoiseTag">Loading…</div>
+    </div>
+    <div class="sc">
+      <div class="sc-corner">↗</div>
+      <div class="sc-lbl">Breaches (Period)</div>
+      <div class="sc-val" id="sBreach" style="color:var(--red)">--</div>
+      <div class="sc-unit">Threshold exceedances</div>
+      <div class="sc-tag n" id="sBreachTag">Loading…</div>
+    </div>
+    <div class="sc">
+      <div class="sc-corner">↺</div>
+      <div class="sc-lbl">Last Updated</div>
+      <div class="sc-val" id="sUpd" style="font-size:20px">--:--</div>
+      <div class="sc-unit" id="sCountdown">Auto-refresh every 60s</div>
+      <div class="sc-tag g">● Live Feed</div>
+    </div>
+  </div>
+
+  <!-- Gauges -->
+  <div class="gauges">
+    <!-- NO2 -->
+    <div class="gc" id="no2Card">
+      <div class="gc-hdr">
+        <div><div class="gc-name">Nitrogen Dioxide</div><div class="gc-sub">NO₂ concentration</div></div>
+        <div class="gc-badge" id="no2Badge">OK</div>
+      </div>
+      <div class="gc-body">
+        <svg id="no2Svg" viewBox="0 0 220 130" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="gNo2" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#22c55e"/>
+              <stop offset="55%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#ef4444"/>
+            </linearGradient>
+          </defs>
+          <path d="M20,112 A90,90,0,0,1,200,112" stroke="#dce9dc" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <path id="no2Arc" d="M20,112 A90,90,0,0,1,200,112" stroke="url(#gNo2)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="282.7 10000" stroke-dashoffset="282.7" style="transition:stroke-dashoffset 1.3s cubic-bezier(.4,0,.2,1)"/>
+          <g id="no2Tick"></g>
+          <text id="no2Val" x="110" y="86" text-anchor="middle" font-family="DM Mono,monospace" font-size="32" font-weight="500" fill="#0d1f0f">--</text>
+          <text x="110" y="103" text-anchor="middle" font-family="Syne,sans-serif" font-size="9" fill="#5b7d63">µg/m³</text>
+          <text x="20" y="127" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#a0bca6">0</text>
+          <text x="200" y="127" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#a0bca6">200</text>
+        </svg>
+      </div>
+      <div class="gc-foot"><span>WHO Annual Limit</span><span class="gc-thresh">⊢ 40 µg/m³</span></div>
+    </div>
+
+    <!-- PM2.5 -->
+    <div class="gc" id="pm25Card">
+      <div class="gc-hdr">
+        <div><div class="gc-name">Fine Particulates</div><div class="gc-sub">PM₂.₅ concentration</div></div>
+        <div class="gc-badge" id="pm25Badge">OK</div>
+      </div>
+      <div class="gc-body">
+        <svg id="pm25Svg" viewBox="0 0 220 130" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="gPm" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#06b6d4"/>
+              <stop offset="55%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#ef4444"/>
+            </linearGradient>
+          </defs>
+          <path d="M20,112 A90,90,0,0,1,200,112" stroke="#dce9dc" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <path id="pm25Arc" d="M20,112 A90,90,0,0,1,200,112" stroke="url(#gPm)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="282.7 10000" stroke-dashoffset="282.7" style="transition:stroke-dashoffset 1.3s cubic-bezier(.4,0,.2,1)"/>
+          <g id="pm25Tick"></g>
+          <text id="pm25Val" x="110" y="86" text-anchor="middle" font-family="DM Mono,monospace" font-size="32" font-weight="500" fill="#0d1f0f">--</text>
+          <text x="110" y="103" text-anchor="middle" font-family="Syne,sans-serif" font-size="9" fill="#5b7d63">µg/m³</text>
+          <text x="20" y="127" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#a0bca6">0</text>
+          <text x="200" y="127" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#a0bca6">100</text>
+        </svg>
+      </div>
+      <div class="gc-foot"><span>WHO Daily Limit</span><span class="gc-thresh">⊢ 25 µg/m³</span></div>
+    </div>
+
+    <!-- Noise -->
+    <div class="gc" id="noiseCard">
+      <div class="gc-hdr">
+        <div><div class="gc-name">Ambient Noise</div><div class="gc-sub">LAeq sound level</div></div>
+        <div class="gc-badge" id="noiseB">OK</div>
+      </div>
+      <div class="gc-body">
+        <svg id="noiseSvg" viewBox="0 0 220 130" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="gNs" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#a855f7"/>
+              <stop offset="55%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#ef4444"/>
+            </linearGradient>
+          </defs>
+          <path d="M20,112 A90,90,0,0,1,200,112" stroke="#dce9dc" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <path id="noiseArc" d="M20,112 A90,90,0,0,1,200,112" stroke="url(#gNs)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="282.7 10000" stroke-dashoffset="282.7" style="transition:stroke-dashoffset 1.3s cubic-bezier(.4,0,.2,1)"/>
+          <g id="noiseTick"></g>
+          <text id="noiseVal" x="110" y="86" text-anchor="middle" font-family="DM Mono,monospace" font-size="32" font-weight="500" fill="#0d1f0f">--</text>
+          <text x="110" y="103" text-anchor="middle" font-family="Syne,sans-serif" font-size="9" fill="#5b7d63">dB(A)</text>
+          <text x="20" y="127" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#a0bca6">30</text>
+          <text x="200" y="127" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#a0bca6">100</text>
+        </svg>
+      </div>
+      <div class="gc-foot"><span>Concern Threshold</span><span class="gc-thresh">⊢ 65 dB(A)</span></div>
+    </div>
+  </div>
+
+  <!-- Bottom Row -->
+  <div class="bottom">
+    <div class="cc">
+      <div class="row">
+        <div class="sec-ttl">Historical Overview</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="leg">
+            <span><span class="ld" style="background:#22c55e"></span>NO₂</span>
+            <span><span class="ld" style="background:#06b6d4"></span>PM₂.₅</span>
+            <span><span class="ld" style="background:#a855f7"></span>Noise</span>
+          </div>
+          <div class="tabs">
+            <button class="tab on" onclick="setPeriod('24h',this)">24h</button>
+            <button class="tab" onclick="setPeriod('7d',this)">7d</button>
+          </div>
+        </div>
+      </div>
+      <div id="chartWrap"><canvas id="histChart"></canvas></div>
+      <div class="xax" id="xax"></div>
+    </div>
+
+    <div class="bc">
+      <div class="row">
+        <div class="sec-ttl">Threshold Breaches</div>
+        <span class="bbadge" id="bBadge">0</span>
+      </div>
+      <div id="bList"><div class="empty"><div class="spin"></div></div></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const API   = 'https://data.smartdublin.ie/sonitus-api';
+const AUTH  = 'Basic ' + btoa('dublincityapi:Xpa5vAQ9ki');
+const ARC   = 282.7; // π × 90 (semicircle arc length)
+const CX=110, CY=112, R=90;
+
+const CFG = {
+  no2:   { max:200, thresh:40,  min:0,  label:'NO₂',   unit:'µg/m³', color:'#22c55e' },
+  pm25:  { max:100, thresh:25,  min:0,  label:'PM₂.₅', unit:'µg/m³', color:'#06b6d4' },
+  noise: { max:100, thresh:65,  min:30, label:'Noise',  unit:'dB(A)', color:'#a855f7' },
+};
+
+let serial=null, period='24h', demo=false, chart=null, cd=60;
+
+// ═══════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════
+function tick() {
+  const n=new Date();
+  document.getElementById('ct').textContent = n.toLocaleTimeString('en-IE',{hour12:false});
+  document.getElementById('cd').textContent = n.toLocaleDateString('en-IE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+tick(); setInterval(tick,1000);
+
+// ═══════════════════════════════════════════════
+// STATUS PILL
+// ═══════════════════════════════════════════════
+function setStatus(txt, color) {
+  document.getElementById('pillTxt').textContent = txt;
+  document.getElementById('pillDot').style.color = color;
+  const pill = document.getElementById('pill');
+  const bg = color==='#22c55e' ? 'var(--g-light)' : color==='#f59e0b' ? '#fefce8' : '#fef2f2';
+  const tc = color==='#22c55e' ? 'var(--g-dark)'  : color==='#f59e0b' ? '#78350f'  : '#991b1b';
+  pill.style.background = bg; pill.style.color = tc;
+}
+
+function showBanner(type, msg) {
+  const b = document.getElementById('banner');
+  b.className = 'banner ' + type;
+  b.textContent = msg;
+  b.style.display = 'block';
+}
+
+function hideBanner() { document.getElementById('banner').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════
+// API FETCH
+// ═══════════════════════════════════════════════
+async function api(path) {
+  const r = await fetch(API+path, { headers:{'Authorization':AUTH}, mode:'cors' });
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+const now = () => Math.floor(Date.now()/1000);
+const ago = h => now() - h*3600;
+
+// ═══════════════════════════════════════════════
+// FIND DONNYBROOK
+// ═══════════════════════════════════════════════
+async function findDonnybrook() {
+  const raw = await api('/monitors');
+  const arr = Array.isArray(raw) ? raw : (raw.monitors||raw.data||Object.values(raw)||[]);
+  const pick = f => arr.find(m => JSON.stringify(m).toLowerCase().includes(f));
+  const m = pick('donnybrook') || arr[0];
+  if (!m) throw new Error('No monitors found');
+  return m.serial || m.id || m.monitor_id || m.SN ||
+    Object.values(m).find(v => typeof v==='string' && /^[A-Z0-9\-_]{3,20}$/i.test(v));
+}
+
+// ═══════════════════════════════════════════════
+// PARSE HELPERS
+// ═══════════════════════════════════════════════
+function xv(obj, keys) {
+  for (const k of keys) if (obj[k]!=null) { const v=parseFloat(obj[k]); if (!isNaN(v)) return v; }
+  return null;
+}
+
+function parseLive(raw) {
+  const r = { no2:null, pm25:null, noise:null };
+  let items = Array.isArray(raw) ? raw : (raw.data||raw.readings||raw.results||[]);
+
+  // Flat object
+  if (!items.length && typeof raw==='object') {
+    r.no2   = xv(raw,['no2','NO2','nitrogen_dioxide','nitrogenDioxide']);
+    r.pm25  = xv(raw,['pm25','PM25','pm2_5','PM2_5']);
+    r.noise = xv(raw,['noise','laeq','LAeq','LAEQ','Laeq']);
+    return r;
+  }
+
+  // {channel, value} format
+  if (items.length && (items[0].channel||items[0].parameter)) {
+    const map={};
+    items.forEach(x => {
+      const ch=(x.channel||x.parameter||'').toLowerCase().replace(/\W/g,'');
+      const v=parseFloat(x.value||x.reading||0);
+      const ts=x.datetime||x.timestamp||0;
+      if (!map[ch]||ts>map[ch].ts) map[ch]={v,ts};
+    });
+    r.no2   = (map.no2||map.nitrogendioxide||{}).v ?? null;
+    r.pm25  = (map.pm25||map.pm2||{}).v ?? null;
+    r.noise = (map.noise||map.laeq||map.sound||{}).v ?? null;
+    return r;
+  }
+
+  // Row format
+  const sorted = [...items].sort((a,b)=>(b.datetime||0)-(a.datetime||0));
+  const last = sorted[0] || {};
+  r.no2   = xv(last,['no2','NO2']);
+  r.pm25  = xv(last,['pm25','PM25','pm2_5']);
+  r.noise = xv(last,['noise','laeq','LAeq','LAEQ']);
+  return r;
+}
+
+function parseHourly(raw) {
+  const arr = Array.isArray(raw) ? raw : (raw.data||raw.readings||[]);
+  return arr.map(d => ({
+    datetime: d.datetime||d.timestamp||d.time||0,
+    no2:   xv(d,['no2','NO2'])  ?? 0,
+    pm25:  xv(d,['pm25','PM25','pm2_5']) ?? 0,
+    noise: xv(d,['noise','laeq','LAeq','LAEQ']) ?? 0,
+  })).sort((a,b)=>a.datetime-b.datetime);
+}
+
+// ═══════════════════════════════════════════════
+// GAUGE
+// ═══════════════════════════════════════════════
+function setGauge(ch, val) {
+  const c=CFG[ch];
+  const arc=document.getElementById(ch==='noise'?'noiseArc':ch+'Arc');
+  const vtxt=document.getElementById(ch==='noise'?'noiseVal':ch+'Val');
+  const badge=document.getElementById(ch==='noise'?'noiseB':ch+'Badge');
+  const card=document.getElementById(ch==='noise'?'noiseCard':ch+'Card');
+
+  if (val===null||isNaN(val)) { arc.style.strokeDashoffset=ARC; vtxt.textContent='--'; return; }
+
+  const pct = Math.min((val-(c.min||0)) / (c.max-(c.min||0)), 1);
+  arc.style.strokeDashoffset = (1-pct)*ARC;
+  vtxt.textContent = Number.isInteger(val) ? val : val.toFixed(1);
+
+  // Status
+  card.classList.remove('warn','danger');
+  badge.className='gc-badge';
+  if (val > c.thresh*1.5) {
+    card.classList.add('danger'); badge.className='gc-badge danger show'; badge.textContent='⚠ HIGH';
+  } else if (val > c.thresh) {
+    card.classList.add('warn');   badge.className='gc-badge warn show';   badge.textContent='⚠ WARN';
+  } else {
+    badge.textContent='OK';
+  }
+
+  // Threshold tick mark
+  drawTick(ch==='noise'?'noiseTick':ch+'Tick', c.thresh, c.max, c.min||0);
+}
+
+function drawTick(id, thresh, max, min) {
+  const g = document.getElementById(id);
+  const f = (thresh-min)/(max-min);
+  const deg = 180 + f*180;
+  const rad = deg * Math.PI/180;
+  const xi = +(CX + (R-9)*Math.cos(rad)).toFixed(1);
+  const yi = +(CY + (R-9)*Math.sin(rad)).toFixed(1);
+  const xo = +(CX + (R+5)*Math.cos(rad)).toFixed(1);
+  const yo = +(CY + (R+5)*Math.sin(rad)).toFixed(1);
+  g.innerHTML = `<line x1="${xi}" y1="${yi}" x2="${xo}" y2="${yo}" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>`;
+}
+
+// ═══════════════════════════════════════════════
+// AQI
+// ═══════════════════════════════════════════════
+function setAQI(no2, pm25) {
+  const a = no2!==null||pm25!==null
+    ? Math.round(Math.max(no2?no2/CFG.no2.thresh*50:0, pm25?pm25/CFG.pm25.thresh*50:0))
+    : null;
+  document.getElementById('sAqi').textContent = a!==null ? a : '--';
+  const tag = document.getElementById('sAqiTag');
+  if (a===null) { tag.className='sc-tag n'; tag.textContent='No data'; return; }
+  if (a<=50)    { tag.className='sc-tag g'; tag.textContent='● Good'; }
+  else if(a<=100){ tag.className='sc-tag w'; tag.textContent='● Moderate'; }
+  else          { tag.className='sc-tag r'; tag.textContent='● Unhealthy'; }
+}
+
+// ═══════════════════════════════════════════════
+// CHART (Chart.js)
+// ═══════════════════════════════════════════════
+function drawChart(data) {
+  const wrap = document.getElementById('chartWrap');
+  const canvas = document.getElementById('histChart');
+  if (chart) { chart.destroy(); chart=null; }
+
+  if (!data||!data.length) {
+    canvas.style.display='none';
+    wrap.innerHTML='<p style="font-size:11px;color:var(--muted);text-align:center;padding:30px 0">No historical data</p>';
+    return;
+  }
+
+  canvas.style.display='block';
+  wrap.innerHTML=''; wrap.appendChild(canvas);
+
+  const labels=[], no2s=[], pm25s=[], noises=[];
+  data.forEach(d => {
+    const dt=new Date((d.datetime||0)*1000);
+    labels.push(dt.getHours().toString().padStart(2,'0')+':00');
+    no2s.push(+(d.no2||0).toFixed(1));
+    pm25s.push(+(d.pm25||0).toFixed(1));
+    noises.push(+(d.noise||0).toFixed(1));
+  });
+
+  // Show every nth label
+  const step = Math.max(1, Math.ceil(labels.length/7));
+  const xLabels = labels.map((l,i) => i%step===0 ? l : '');
+
+  chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: xLabels,
+      datasets: [
+        { label:'NO₂',   data:no2s,  backgroundColor:'rgba(34,197,94,.7)',  borderRadius:2, barPercentage:.9, categoryPercentage:.9 },
+        { label:'PM₂.₅', data:pm25s, backgroundColor:'rgba(6,182,212,.7)', borderRadius:2, barPercentage:.9, categoryPercentage:.9 },
+        { label:'Noise',  data:noises,backgroundColor:'rgba(168,85,247,.7)',borderRadius:2, barPercentage:.9, categoryPercentage:.9 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:{ duration:600 },
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{
+        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw} ${ctx.datasetIndex===2?'dB':'µg/m³'}`
+      }}},
+      scales: {
+        x: { grid:{display:false}, ticks:{color:'#a0bca6',font:{size:9,family:'DM Mono'}, maxRotation:0 } },
+        y: { grid:{color:'rgba(0,0,0,.05)'}, ticks:{color:'#a0bca6',font:{size:9,family:'DM Mono'}}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// BREACHES
+// ═══════════════════════════════════════════════
+function analyzeBreaches(data) {
+  const list=[];
+  data.forEach(d => {
+    const t=new Date((d.datetime||0)*1000).toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit',hour12:false});
+    Object.keys(CFG).forEach(k => {
+      const c=CFG[k], v=d[k];
+      if (v&&v>c.thresh) list.push({ label:c.label, unit:c.unit, value:v, thresh:c.thresh, time:t, sev:v>c.thresh*1.5?'danger':'warn' });
+    });
+  });
+  return list;
+}
+
+function renderBreaches(list) {
+  document.getElementById('bBadge').textContent = list.length;
+  document.getElementById('sBreach').textContent = list.length;
+  const bt=document.getElementById('sBreachTag');
+  bt.className='sc-tag '+(list.length===0?'g':list.some(b=>b.sev==='danger')?'r':'w');
+  bt.textContent = list.length===0 ? '✓ All clear' : `${list.length} exceedance${list.length>1?'s':''}`;
+
+  const el=document.getElementById('bList');
+  if (!list.length) {
+    el.innerHTML=`<div class="empty"><div class="icon">✓</div>No threshold breaches<br><span style="font-size:9px;color:#a0bca6">All readings within safe limits</span></div>`;
+    return;
+  }
+  el.innerHTML=list.slice(-5).reverse().map(b=>`
+    <div class="bi">
+      <div class="bi-icon ${b.sev==='danger'?'d':'w'}">${b.sev==='danger'?'🔴':'🟡'}</div>
+      <div class="bi-info">
+        <div class="bi-name">${b.label} exceeded</div>
+        <div class="bi-time">${b.time} · limit: ${b.thresh} ${b.unit}</div>
+      </div>
+      <div class="bi-val">${b.value.toFixed(1)}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// LIVE ALERTS
+// ═══════════════════════════════════════════════
+function checkLiveAlerts(r) {
+  const alerts=[];
+  if (r.no2!==null   && r.no2   > CFG.no2.thresh)   alerts.push(`NO₂ ${r.no2.toFixed(1)} µg/m³`);
+  if (r.pm25!==null  && r.pm25  > CFG.pm25.thresh)  alerts.push(`PM₂.₅ ${r.pm25.toFixed(1)} µg/m³`);
+  if (r.noise!==null && r.noise > CFG.noise.thresh) alerts.push(`Noise ${r.noise.toFixed(1)} dB(A)`);
+  if (alerts.length) {
+    showBanner('alert', '🚨 LIVE ALERT — '+alerts.join(' · ')+' — above threshold');
+  } else if (!demo) {
+    hideBanner();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════════════════
+function genDemo() {
+  return Array.from({length:24},(_,i)=>({
+    datetime: now()-(23-i)*3600,
+    no2:   +(12 + Math.random()*35 + (i>7&&i<20?10:0)).toFixed(1),
+    pm25:  +(6  + Math.random()*22).toFixed(1),
+    noise: +(50 + Math.random()*22 + (i>7&&i<22?7:0)).toFixed(1),
+  }));
+}
+
+function showDemo(reason) {
+  demo=true;
+  showBanner('demo','⚠ Demo Mode — '+reason+'. Showing simulated data. Host this file on a local server (e.g. python3 -m http.server) to load live data.');
+  document.getElementById('stnId').textContent='DEMO · Simulated';
+  setStatus('Demo Mode','#f59e0b');
+  const h=genDemo();
+  const l=h[h.length-1];
+  updateUI({no2:l.no2,pm25:l.pm25,noise:l.noise},h);
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function updateUI(live, hourly) {
+  setGauge('no2',   live.no2);
+  setGauge('pm25',  live.pm25);
+  setGauge('noise', live.noise);
+  setAQI(live.no2, live.pm25);
+
+  const nv=live.noise;
+  document.getElementById('sNoise').textContent = nv!==null ? nv.toFixed(1) : '--';
+  const nt=document.getElementById('sNoiseTag');
+  nt.className='sc-tag '+(nv===null?'n':nv>CFG.noise.thresh?'r':'g');
+  nt.textContent = nv===null?'No data':nv>CFG.noise.thresh?'⚠ Above limit':'✓ Normal';
+
+  drawChart(hourly);
+  renderBreaches(analyzeBreaches(hourly));
+  checkLiveAlerts(live);
+
+  const now2=new Date();
+  document.getElementById('sUpd').textContent =
+    now2.toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+
+// ═══════════════════════════════════════════════
+// MAIN UPDATE
+// ═══════════════════════════════════════════════
+async function update() {
+  try {
+    setStatus('Fetching…','#f59e0b');
+    if (!serial) {
+      setStatus('Locating sensor…','#f59e0b');
+      serial = await findDonnybrook();
+      document.getElementById('stnId').textContent = 'ID: '+serial;
+    }
+
+    const [liveRaw, histRaw] = await Promise.all([
+      api(`/data?monitor=${serial}&start=${ago(2)}&end=${now()}`),
+      api(`/hourly-averages?monitor=${serial}&start=${ago(period==='7d'?168:24)}&end=${now()}`),
+    ]);
+
+    const live   = parseLive(liveRaw);
+    const hourly = parseHourly(histRaw);
+
+    updateUI(live, hourly);
+    demo=false; hideBanner();
+    setStatus('Live · Updated','#22c55e');
+    cd=60;
+  } catch(e) {
+    console.warn('[AirNoise]',e.message);
+    const isCORS = e.message.includes('fetch')||e.message.includes('NetworkError')||e.message.includes('Failed')||e.message.includes('CORS');
+    showDemo(isCORS ? 'CORS restriction prevents browser access from this origin' : e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// PERIOD TOGGLE
+// ═══════════════════════════════════════════════
+function setPeriod(p, btn) {
+  period=p;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  serial=null; // reset to refetch
+  update();
+}
+
+// ═══════════════════════════════════════════════
+// AUTO REFRESH COUNTDOWN
+// ═══════════════════════════════════════════════
+setInterval(()=>{
+  cd--;
+  if (cd<=0) { cd=60; update(); }
+  if (!demo) document.getElementById('sCountdown').textContent=`Auto-refresh in ${cd}s`;
+},1000);
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+update();
+</script>
+</body>
+</html>
