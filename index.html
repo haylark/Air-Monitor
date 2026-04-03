@@ -30,44 +30,8 @@
 html, body { height: 100%; overflow: hidden; font-family: var(--sans); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
 #wrap { display: flex; height: 100vh; }
 
-/* ── SIDEBAR ─────────────────────────── */
-aside {
-  width: 185px; flex-shrink: 0;
-  background: var(--sidebar);
-  display: flex; flex-direction: column;
-  padding: 20px 13px; gap: 0;
-}
-.logo { display: flex; align-items: center; gap: 9px; margin-bottom: 28px; }
-.logo-icon {
-  width: 33px; height: 33px; border-radius: 9px;
-  background: var(--g-mid);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.logo-icon svg { width: 17px; height: 17px; }
-.logo-text strong { display: block; color: #fff; font-size: 14px; font-weight: 700; line-height: 1.1; }
-.logo-text span { color: #3a6b4a; font-size: 10px; font-weight: 400; }
-.nl { color: #274733; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 7px; margin: 14px 0 5px; }
-.ni {
-  display: flex; align-items: center; gap: 9px;
-  padding: 9px 10px; border-radius: 9px;
-  color: #5a8268; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; margin-bottom: 1px;
-  transition: background .15s, color .15s;
-}
-.ni:hover { background: rgba(34,197,94,.08); color: #7acc97; }
-.ni.on { background: rgba(34,197,94,.15); color: var(--g-mid); }
-.ni .ic { font-size: 14px; width: 18px; text-align: center; }
-.stn {
-  margin-top: auto;
-  background: rgba(34,197,94,.07);
-  border: 1px solid rgba(34,197,94,.15);
-  border-radius: 10px; padding: 10px 11px;
-}
-.stn-lbl { font-size: 9px; color: #274733; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 5px; }
-.stn-name { color: #ddf0e5; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
 .dot { width: 6px; height: 6px; background: var(--g-mid); border-radius: 50%; flex-shrink: 0; animation: blink 2s ease-in-out infinite; }
 @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-.stn-id { font-family: var(--mono); font-size: 9px; color: #3a5c47; }
 
 /* ── MAIN ─────────────────────────── */
 main {
@@ -185,36 +149,6 @@ main {
 <body>
 <div id="wrap">
 
-<!-- SIDEBAR -->
-<aside>
-  <div class="logo">
-    <div class="logo-icon">
-      <svg viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="8.5" cy="8.5" r="3" fill="white"/>
-        <circle cx="8.5" cy="8.5" r="6.5" stroke="white" stroke-width="1.5" stroke-dasharray="2.2 1.8"/>
-      </svg>
-    </div>
-    <div class="logo-text">
-      <strong>AirNoise</strong>
-      <span>Dublin Monitor</span>
-    </div>
-  </div>
-
-  <div class="nl">Menu</div>
-  <div class="ni on"><span class="ic">⬡</span> Dashboard</div>
-  <div class="ni"><span class="ic">◈</span> Historical</div>
-  <div class="ni"><span class="ic">◉</span> Alerts</div>
-  <div class="ni"><span class="ic">⬟</span> Map View</div>
-  <div class="nl">General</div>
-  <div class="ni"><span class="ic">⚙</span> Settings</div>
-  <div class="ni"><span class="ic">?</span> Help</div>
-
-  <div class="stn">
-    <div class="stn-lbl">Active Station</div>
-    <div class="stn-name"><span class="dot"></span>Donnybrook</div>
-    <div class="stn-id" id="stnId">Locating sensor…</div>
-  </div>
-</aside>
 
 <!-- MAIN -->
 <main>
@@ -390,7 +324,8 @@ main {
 // ═══════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════
-const API = 'https://sonitus-proxy.peter-f93.workers.dev';
+const API   = 'https://sonitus-proxy.peter-f93.workers.dev';
+const AUTH  = 'Basic ' + btoa('dublincityapi:Xpa5vAQ9ki');
 const ARC   = 282.7; // π × 90 (semicircle arc length)
 const CX=110, CY=112, R=90;
 
@@ -437,7 +372,7 @@ function hideBanner() { document.getElementById('banner').style.display = 'none'
 // API FETCH
 // ═══════════════════════════════════════════════
 async function api(path) {
-  const r = await fetch(API+path, { headers:{}, mode:'cors' });
+  const r = await fetch(API+path, { headers:{'Authorization':AUTH}, mode:'cors' });
   if (!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
@@ -779,3 +714,4 @@ update();
 </script>
 </body>
 </html>
+
