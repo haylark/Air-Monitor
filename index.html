@@ -390,8 +390,7 @@ main {
 // ═══════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════
-const API   = 'https://data.smartdublin.ie/sonitus-api';
-const AUTH  = 'Basic ' + btoa('dublincityapi:Xpa5vAQ9ki');
+const API = 'https://sonitus-proxy.peter-f93.workers.dev';
 const ARC   = 282.7; // π × 90 (semicircle arc length)
 const CX=110, CY=112, R=90;
 
@@ -438,7 +437,7 @@ function hideBanner() { document.getElementById('banner').style.display = 'none'
 // API FETCH
 // ═══════════════════════════════════════════════
 async function api(path) {
-  const r = await fetch(API+path, { headers:{'Authorization':AUTH}, mode:'cors' });
+  const r = await fetch(API+path, { headers:{}, mode:'cors' });
   if (!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
