@@ -1,391 +1,504 @@
-
-import { useState, useEffect, useRef, useCallback } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-
-const WORKER = "https://sonitus-proxy.peter-f93.workers.dev";
-
-const AQI_LEVELS = [
-  { max: 50,  label: "Good",              color: "#22c55e", bg: "#dcfce7" },
-  { max: 100, label: "Moderate",          color: "#f59e0b", bg: "#fef3c7" },
-  { max: 150, label: "Unhealthy (SG)",    color: "#f97316", bg: "#ffedd5" },
-  { max: 200, label: "Unhealthy",         color: "#ef4444", bg: "#fee2e2" },
-  { max: 300, label: "Very Unhealthy",    color: "#a855f7", bg: "#f3e8ff" },
-  { max: 999, label: "Hazardous",         color: "#7f1d1d", bg: "#fef2f2" },
-];
-
-const DOM_LABELS = { pm25: "PM₂.₅", pm10: "PM₁₀", no2: "NO₂", o3: "Ozone", so2: "SO₂", co: "CO" };
-
-function getAqiMeta(aqi) {
-  return AQI_LEVELS.find(l => aqi <= l.max) || AQI_LEVELS[AQI_LEVELS.length - 1];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Donnybrook Air Quality</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:     #eef4ee;
+  --card:   #ffffff;
+  --green:  #1a5c38;
+  --mid:    #22c55e;
+  --light:  #dcfce7;
+  --amber:  #f59e0b;
+  --red:    #ef4444;
+  --blue:   #06b6d4;
+  --purple: #a855f7;
+  --orange: #f97316;
+  --text:   #0d1f0f;
+  --muted:  #5b7d63;
+  --border: #dce9dc;
+  --mono:   'DM Mono', monospace;
+  --sans:   'Syne', sans-serif;
+  --r:      14px;
 }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: var(--sans); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; padding: 12px 14px 20px; }
 
-function fmt(v, dp = 1) {
-  if (v === null || v === undefined) return "--";
-  return Number.isInteger(v) ? String(v) : Number(v).toFixed(dp);
+/* ── BANNER ───────────────────────── */
+.banner { border-radius: 9px; padding: 9px 14px; font-size: 12px; font-weight: 600; margin-bottom: 10px; display: none; }
+.banner.show { display: block; }
+.banner.demo  { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; }
+.banner.alert { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+/* ── HEADER ───────────────────────── */
+.hdr { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
+.hdr-l { display: flex; align-items: center; gap: 10px; }
+.logo { width: 38px; height: 38px; background: var(--green); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.logo svg { width: 20px; height: 20px; }
+.hdr-title { font-size: 20px; font-weight: 800; letter-spacing: -.4px; line-height: 1.1; }
+.hdr-sub   { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.hdr-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.clock { background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 5px 11px; text-align: right; }
+.clock-t { font-family: var(--mono); font-size: 19px; font-weight: 500; color: var(--green); letter-spacing: 1.5px; line-height: 1; }
+.clock-d { font-size: 9px; color: var(--muted); margin-top: 1px; }
+.pill { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; background: var(--light); color: var(--green); transition: all .3s; white-space: nowrap; }
+
+/* ── AQI HERO ─────────────────────── */
+.aqi-hero {
+  background: var(--green); border-radius: var(--r);
+  padding: 14px 18px; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
 }
+.aqi-left { display: flex; align-items: center; gap: 14px; }
+.aqi-num { font-family: var(--mono); font-size: 52px; font-weight: 500; color: #fff; line-height: 1; }
+.aqi-label-wrap { }
+.aqi-lbl  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.5); margin-bottom: 4px; }
+.aqi-cat  { font-size: 20px; font-weight: 800; color: #fff; line-height: 1; }
+.aqi-src  { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 3px; }
+.aqi-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.aqi-dom  { font-size: 11px; color: rgba(255,255,255,.6); text-align: right; }
+.aqi-dom strong { color: #fff; display: block; font-size: 15px; }
+.aqi-time { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,.4); text-align: right; }
 
-function timeLabel(ts) {
-  return new Date(ts).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false });
+/* ── METRIC CARDS ─────────────────── */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 9px; margin-bottom: 10px; }
+.mc {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px; position: relative; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,20,0,.05);
+  transition: border-color .3s;
 }
+.mc.warn   { border-color: var(--amber); }
+.mc.danger { border-color: var(--red); background: #fffafa; }
+.mc-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--r) var(--r) 0 0; }
+.mc-lbl  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+.mc-val  { font-family: var(--mono); font-size: 34px; font-weight: 500; color: var(--text); line-height: 1; }
+.mc-unit { font-size: 10px; color: var(--muted); margin-top: 3px; }
+.mc-tag  { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700; margin-top: 8px; padding: 2px 7px; border-radius: 8px; }
+.mc-tag.g { background: var(--light); color: var(--green); }
+.mc-tag.w { background: #fef3c7; color: #78350f; }
+.mc-tag.r { background: #fee2e2; color: #991b1b; }
+.mc-tag.n { background: var(--bg); color: var(--muted); }
 
-// ── Semicircle Gauge ─────────────────────────────────────────────
-function Gauge({ value, max, thresh, color, label, unit }) {
-  const pct = value !== null ? Math.min(value / max, 1) : 0;
-  const ARC = 282.7;
-  const offset = (1 - pct) * ARC;
-  const tPct = thresh / max;
-  const tDeg = 180 + tPct * 180;
-  const tRad = (tDeg * Math.PI) / 180;
-  const tx1 = (110 + 81 * Math.cos(tRad)).toFixed(1);
-  const ty1 = (112 + 81 * Math.sin(tRad)).toFixed(1);
-  const tx2 = (110 + 95 * Math.cos(tRad)).toFixed(1);
-  const ty2 = (112 + 95 * Math.sin(tRad)).toFixed(1);
-  const isHigh = value !== null && value > thresh;
+/* ── CHART CARDS ──────────────────── */
+.charts { display: flex; flex-direction: column; gap: 9px; }
+.chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 9px; }
+.cc {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,20,0,.05);
+}
+.cc-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.cc-title { font-size: 12px; font-weight: 700; }
+.cc-meta  { font-size: 9px; color: var(--muted); font-family: var(--mono); }
+.cc-wrap  { position: relative; width: 100%; height: 90px; }
+.cc-empty { height: 90px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); flex-direction: column; gap: 5px; }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <svg viewBox="0 0 220 130" style={{ width: "100%", maxWidth: 200 }}>
-        <defs>
-          <linearGradient id={`g_${label}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-            <stop offset="60%" stopColor={color} />
-            <stop offset="100%" stopColor="#ef4444" />
-          </linearGradient>
-        </defs>
-        <path d="M20,112 A90,90,0,0,1,200,112" stroke="#e2e8e2" strokeWidth="14" fill="none" strokeLinecap="round" />
-        <path
-          d="M20,112 A90,90,0,0,1,200,112"
-          stroke={`url(#g_${label})`}
-          strokeWidth="14" fill="none" strokeLinecap="round"
-          strokeDasharray={`${ARC} 10000`}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)" }}
-        />
-        <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" />
-        <text x="110" y="88" textAnchor="middle"
-          style={{ fontFamily: "DM Mono, monospace", fontSize: 30, fontWeight: 500, fill: isHigh ? "#ef4444" : "#0d1f0f" }}>
-          {fmt(value, 0)}
-        </text>
-        <text x="110" y="104" textAnchor="middle"
-          style={{ fontFamily: "Syne, sans-serif", fontSize: 9, fill: "#5b7d63" }}>{unit}</text>
-        <text x="20" y="127" textAnchor="middle" style={{ fontFamily: "DM Mono", fontSize: 8, fill: "#a0bca6" }}>0</text>
-        <text x="200" y="127" textAnchor="middle" style={{ fontFamily: "DM Mono", fontSize: 8, fill: "#a0bca6" }}>{max}</text>
+/* ── FOOTER ───────────────────────── */
+.footer { text-align: center; font-size: 9px; color: var(--muted); margin-top: 14px; font-family: var(--mono); }
+
+/* ── RESPONSIVE ───────────────────── */
+@media (min-width: 768px) {
+  body { padding: 14px 18px 20px; }
+  .metrics { grid-template-columns: repeat(6, 1fr); }
+  .chart-row { grid-template-columns: repeat(2, 1fr); }
+  .mc-val { font-size: 38px; }
+}
+@media (min-width: 1024px) {
+  body { padding: 16px 20px 20px; }
+  .chart-row { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="banner" id="banner"></div>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="logo">
+      <svg viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="3.5" fill="white"/>
+        <circle cx="10" cy="10" r="8" stroke="white" stroke-width="1.5" stroke-dasharray="2.5 2"/>
       </svg>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", fontSize: 9, color: "#5b7d63", fontFamily: "DM Mono", padding: "0 4px" }}>
-        <span>{label}</span>
-        <span style={{ color: "#f59e0b", borderLeft: "2px dashed #f59e0b", paddingLeft: 5 }}>⊢ {thresh} {unit}</span>
+    </div>
+    <div>
+      <div class="hdr-title">Donnybrook Air Quality</div>
+      <div class="hdr-sub">Donnybrook Fire Station · EPA / Dublin City Council · Live via AQICN</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="clock">
+      <div class="clock-t" id="ct">--:--:--</div>
+      <div class="clock-d" id="cd">-</div>
+    </div>
+    <div class="pill" id="pill">
+      <span id="pillDot">●</span>
+      <span id="pillTxt">Connecting</span>
+    </div>
+  </div>
+</div>
+
+<!-- AQI Hero -->
+<div class="aqi-hero">
+  <div class="aqi-left">
+    <div class="aqi-num" id="aqiNum">--</div>
+    <div class="aqi-label-wrap">
+      <div class="aqi-lbl">Air Quality Index</div>
+      <div class="aqi-cat" id="aqiCat">Loading…</div>
+      <div class="aqi-src">AQICN · EPA Ireland · Met Éireann Phoenix Park</div>
+    </div>
+  </div>
+  <div class="aqi-right">
+    <div class="aqi-dom">Dominant pollutant<strong id="aqiDom">--</strong></div>
+    <div class="aqi-time" id="aqiTime">--</div>
+    <div class="aqi-time" id="cdTxt">Auto-refresh every 60s</div>
+  </div>
+</div>
+
+<!-- Metric Cards -->
+<div class="metrics">
+  <div class="mc" id="mcPm25">
+    <div class="mc-accent" style="background:var(--blue)"></div>
+    <div class="mc-lbl">PM₂.₅</div>
+    <div class="mc-val" id="vPm25">--</div>
+    <div class="mc-unit">µg/m³</div>
+    <div class="mc-tag n" id="tPm25">--</div>
+  </div>
+  <div class="mc" id="mcPm10">
+    <div class="mc-accent" style="background:var(--purple)"></div>
+    <div class="mc-lbl">PM₁₀</div>
+    <div class="mc-val" id="vPm10">--</div>
+    <div class="mc-unit">µg/m³</div>
+    <div class="mc-tag n" id="tPm10">--</div>
+  </div>
+  <div class="mc" id="mcTemp">
+    <div class="mc-accent" style="background:var(--orange)"></div>
+    <div class="mc-lbl">Temperature</div>
+    <div class="mc-val" id="vTemp">--</div>
+    <div class="mc-unit">°C</div>
+    <div class="mc-tag n" id="tTemp">--</div>
+  </div>
+  <div class="mc" id="mcRh">
+    <div class="mc-accent" style="background:var(--blue)"></div>
+    <div class="mc-lbl">Humidity</div>
+    <div class="mc-val" id="vRh">--</div>
+    <div class="mc-unit">% R.H.</div>
+    <div class="mc-tag n" id="tRh">--</div>
+  </div>
+  <div class="mc" id="mcPress">
+    <div class="mc-accent" style="background:var(--mid)"></div>
+    <div class="mc-lbl">Pressure</div>
+    <div class="mc-val" id="vPress" style="font-size:26px;padding-top:4px">--</div>
+    <div class="mc-unit">hPa</div>
+    <div class="mc-tag n" id="tPress">--</div>
+  </div>
+  <div class="mc" id="mcWind">
+    <div class="mc-accent" style="background:var(--amber)"></div>
+    <div class="mc-lbl">Wind</div>
+    <div class="mc-val" id="vWind">--</div>
+    <div class="mc-unit">km/h</div>
+    <div class="mc-tag n" id="tWind">--</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="charts">
+  <div class="chart-row">
+    <div class="cc">
+      <div class="cc-hdr">
+        <div class="cc-title">PM₂.₅ · 24h</div>
+        <div class="cc-meta" id="pm25pts">-- readings</div>
       </div>
+      <div class="cc-wrap" id="wPm25"><canvas id="cPm25"></canvas></div>
     </div>
-  );
-}
-
-// ── Mini Chart ────────────────────────────────────────────────────
-function MiniChart({ data, field, color, unit, thresh }) {
-  // Trim to true 24h window
-  const cutoff = Date.now() - 24 * 3600 * 1000;
-  const window24 = data.filter(r => r.ts >= cutoff);
-
-  if (!window24.length) return (
-    <div style={{ height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#5b7d63", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 20 }}>⏳</span>
-      <span>Building history…</span>
-    </div>
-  );
-
-  const pts = window24.map(r => ({
-    ts: r.ts,
-    t: timeLabel(r.ts),
-    v: r[field] ?? null,
-  })).filter(r => r.v !== null);
-
-  // Label only readings within 5 min of the top of each hour
-  const hourlySet = new Set();
-  pts.forEach((p, i) => {
-    if (new Date(p.ts).getMinutes() < 5) hourlySet.add(i);
-  });
-  const tickFormatter = (_val, index) => hourlySet.has(index) ? pts[index].t : "";
-
-  return (
-    <ResponsiveContainer width="100%" height={100}>
-      <BarChart data={pts} margin={{ top: 4, right: 4, left: -22, bottom: 2 }}>
-        <XAxis
-          dataKey="t"
-          tick={{ fontSize: 8, fontFamily: "DM Mono", fill: "#a0bca6" }}
-          tickFormatter={tickFormatter}
-          interval={0}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fontSize: 8, fontFamily: "DM Mono", fill: "#a0bca6" }}
-          axisLine={false}
-          tickLine={false}
-          width={38}
-        />
-        {thresh && (
-          <ReferenceLine y={thresh} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1}
-            label={{ value: "limit", position: "insideTopRight", fontSize: 7, fill: "#f59e0b", fontFamily: "DM Mono" }} />
-        )}
-        <Tooltip
-          contentStyle={{ background: "#fff", border: "1px solid #dce9dc", borderRadius: 8, fontSize: 11, fontFamily: "DM Mono" }}
-          formatter={v => [`${v} ${unit}`, ""]}
-          labelFormatter={l => l}
-        />
-        <Bar dataKey="v" fill={color} fillOpacity={0.75} radius={[2, 2, 0, 0]} maxBarSize={12} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ── Metric Card ───────────────────────────────────────────────────
-function MetCard({ label, value, unit, color, tag, tagColor, tagBg, warn }) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${warn ? "#f59e0b" : "#dce9dc"}`,
-      borderRadius: 13, padding: "12px 14px", position: "relative", overflow: "hidden",
-      boxShadow: "0 1px 3px rgba(0,20,0,.05)", flex: "1 1 140px", minWidth: 130,
-      transition: "border-color .3s"
-    }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: color, borderRadius: "13px 13px 0 0" }} />
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", color: "#5b7d63", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: "DM Mono, monospace", fontSize: 34, fontWeight: 500, lineHeight: 1, color: warn ? "#ef4444" : "#0d1f0f" }}>{value}</div>
-      <div style={{ fontSize: 10, color: "#5b7d63", marginTop: 3 }}>{unit}</div>
-      {tag && <div style={{ display: "inline-block", fontSize: 9, fontWeight: 700, marginTop: 8, padding: "2px 7px", borderRadius: 8, background: tagBg, color: tagColor }}>{tag}</div>}
-    </div>
-  );
-}
-
-// ── Chart Card ────────────────────────────────────────────────────
-function ChartCard({ title, count, children }) {
-  return (
-    <div style={{ background: "#fff", border: "1px solid #dce9dc", borderRadius: 13, padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,20,0,.05)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 700 }}>{title}</div>
-        <div style={{ fontSize: 9, color: "#5b7d63", fontFamily: "DM Mono" }}>{count !== null ? `${count} reading${count !== 1 ? "s" : ""}` : ""}</div>
+    <div class="cc">
+      <div class="cc-hdr">
+        <div class="cc-title">PM₁₀ · 24h</div>
+        <div class="cc-meta" id="pm10pts">-- readings</div>
       </div>
-      {children}
+      <div class="cc-wrap" id="wPm10"><canvas id="cPm10"></canvas></div>
     </div>
-  );
+    <div class="cc">
+      <div class="cc-hdr">
+        <div class="cc-title">Temperature · 24h</div>
+        <div class="cc-meta" id="temppts">-- readings</div>
+      </div>
+      <div class="cc-wrap" id="wTemp"><canvas id="cTemp"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-row">
+    <div class="cc">
+      <div class="cc-hdr">
+        <div class="cc-title">Humidity · 24h</div>
+        <div class="cc-meta" id="rhpts">-- readings</div>
+      </div>
+      <div class="cc-wrap" id="wRh"><canvas id="cRh"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr">
+        <div class="cc-title">Pressure · 24h</div>
+        <div class="cc-meta" id="presspts">-- readings</div>
+      </div>
+      <div class="cc-wrap" id="wPress"><canvas id="cPress"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr">
+        <div class="cc-title">Wind · 24h</div>
+        <div class="cc-meta" id="windpts">-- readings</div>
+      </div>
+      <div class="cc-wrap" id="wWind"><canvas id="cWind"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footer">Donnybrook Fire Station · Station A501121 · EPA Ireland / AQICN · Data refreshes every 60 seconds</div>
+
+<script>
+const API      = 'https://sonitus-proxy.peter-f93.workers.dev/feed';
+const HIST_API = 'https://sonitus-proxy.peter-f93.workers.dev/history';
+let cd = 60, demo = false;
+const charts  = {};
+
+// ── CLOCK ─────────────────────────────────
+function tick() {
+  const n = new Date();
+  document.getElementById('ct').textContent = n.toLocaleTimeString('en-IE',{hour12:false});
+  document.getElementById('cd').textContent = n.toLocaleDateString('en-IE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+tick(); setInterval(tick, 1000);
+
+// ── STATUS ────────────────────────────────
+function setStatus(txt, color) {
+  const p = document.getElementById('pill');
+  document.getElementById('pillTxt').textContent = txt;
+  document.getElementById('pillDot').style.color = color;
+  p.style.background = color==='#22c55e'?'var(--light)':color==='#f59e0b'?'#fefce8':'#fef2f2';
+  p.style.color = color==='#22c55e'?'var(--green)':color==='#f59e0b'?'#78350f':'#991b1b';
 }
 
-// ── Main App ─────────────────────────────────────────────────────
-export default function App() {
-  const [live, setLive]       = useState(null);
-  const [history, setHistory] = useState([]);
-  const [status, setStatus]   = useState("connecting");
-  const [clock, setClock]     = useState("");
-  const [date, setDate]       = useState("");
-  const [cd, setCd]           = useState(60);
-  const [demo, setDemo]       = useState(false);
-  const [error, setError]     = useState(null);
-  const cdRef = useRef(60);
+function banner(type, msg) {
+  const b = document.getElementById('banner');
+  b.className = 'banner show ' + type;
+  b.textContent = msg;
+}
+function clearBanner() { document.getElementById('banner').className = 'banner'; }
 
-  // Clock
-  useEffect(() => {
-    const tick = () => {
-      const n = new Date();
-      setClock(n.toLocaleTimeString("en-IE", { hour12: false }));
-      setDate(n.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
-    };
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
-  }, []);
+// ── AQI META ──────────────────────────────
+function aqiMeta(v) {
+  if (v <= 50)  return ['Good',             'g', '#22c55e'];
+  if (v <= 100) return ['Moderate',         'w', '#f59e0b'];
+  if (v <= 150) return ['Unhealthy (SG)',   'w', '#f59e0b'];
+  if (v <= 200) return ['Unhealthy',        'r', '#ef4444'];
+  if (v <= 300) return ['Very Unhealthy',   'r', '#ef4444'];
+  return              ['Hazardous',         'r', '#ef4444'];
+}
 
-  const fetchHistory = useCallback(async () => {
-    try {
-      const res = await fetch(`${WORKER}/history`);
-      const j   = await res.json();
-      setHistory(j.readings || []);
-    } catch(e) { console.warn("[HIST]", e.message); }
-  }, []);
+const DOM_LABELS = { pm25:'PM₂.₅', pm10:'PM₁₀', no2:'NO₂', o3:'Ozone', so2:'SO₂', co:'CO' };
 
-  const fetchLive = useCallback(async () => {
-    setStatus("fetching");
-    try {
-      const res  = await fetch(`${WORKER}/feed`);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setLive(json);
-      setDemo(false);
-      setError(null);
-      setStatus("live");
-      cdRef.current = 60;
-      setCd(60);
-      // Refresh history after each live fetch
-      await fetchHistory();
-    } catch(e) {
-      console.warn("[AQ]", e.message);
-      setError(e.message);
-      setStatus("error");
-      setDemo(true);
-      setLive({
-        aqi: 18, dominant: "pm25", time: new Date().toISOString(),
-        live: { pm25: 8, pm10: 12, temp: 14, press: 1008, rain: 0, wind: 11, rh: 72 }
-      });
-    }
-  }, [fetchHistory]);
+// ── METRIC CARD ───────────────────────────
+function setCard(id, val, unit, tagTxt, tagCls) {
+  document.getElementById('v'+id).textContent = val !== null ? (Number.isInteger(val) ? val : val.toFixed(1)) : '--';
+  const t = document.getElementById('t'+id);
+  t.textContent  = tagTxt;
+  t.className    = 'mc-tag ' + tagCls;
+}
 
-  // Init — load history then live
-  useEffect(() => {
-    fetchHistory().then(fetchLive);
-  }, []);
+function pmTag(v, thresh) {
+  if (v === null) return ['No data', 'n'];
+  if (v > thresh * 1.5) return ['⚠ High', 'r'];
+  if (v > thresh)       return ['⚠ Above limit', 'w'];
+  return ['✓ Good', 'g'];
+}
 
-  // Countdown + auto-refresh
-  useEffect(() => {
-    const t = setInterval(() => {
-      cdRef.current--;
-      setCd(cdRef.current);
-      if (cdRef.current <= 0) {
-        cdRef.current = 60;
-        fetchLive();
+// ── HISTORY (server-side KV via Worker) ───
+let _history = [];
+
+async function loadHistory() {
+  try {
+    const res = await fetch(HIST_API);
+    const j   = await res.json();
+    _history  = j.readings || [];
+  } catch(e) { console.warn('[HIST]', e.message); }
+  return _history;
+}
+
+function histLabel(ts) {
+  return new Date(ts).toLocaleTimeString('en-IE', { hour:'2-digit', minute:'2-digit', hour12:false });
+}
+
+// ── CHART ─────────────────────────────────
+const CHART_COLORS = {
+  pm25:  { bg:'rgba(6,182,212,.5)',   border:'#06b6d4' },
+  pm10:  { bg:'rgba(168,85,247,.5)',  border:'#a855f7' },
+  temp:  { bg:'rgba(249,115,22,.5)',  border:'#f97316' },
+  rh:    { bg:'rgba(6,182,212,.35)',  border:'#06b6d4' },
+  press: { bg:'rgba(34,197,94,.4)',   border:'#22c55e' },
+  wind:  { bg:'rgba(245,158,11,.5)',  border:'#f59e0b' },
+};
+
+function drawChart(id, key, history, yLabel) {
+  const canvas = document.getElementById('c' + id);
+  const wrap   = document.getElementById('w' + id);
+  const pts    = document.getElementById(key.toLowerCase() + 'pts');
+
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+
+  if (!history.length) {
+    wrap.innerHTML = `<div class="cc-empty"><span style="font-size:18px">⏳</span><span>Building history…<br>Check back in a few minutes</span></div>`;
+    if (pts) pts.textContent = '0 readings';
+    return;
+  }
+
+  wrap.innerHTML = ''; 
+  const c = document.createElement('canvas');
+  c.id = 'c' + id;
+  wrap.appendChild(c);
+
+  const col   = CHART_COLORS[key];
+  const step  = Math.max(1, Math.ceil(history.length / 12));
+  const labels = history.map((r, i) => i % step === 0 ? histLabel(r.ts) : '');
+  const data   = history.map(r => r[key] ?? null);
+
+  if (pts) pts.textContent = `${history.length} reading${history.length !== 1 ? 's' : ''}`;
+
+  charts[id] = new Chart(c, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: col.bg,
+        borderColor:     col.border,
+        borderWidth:     1,
+        borderRadius:    2,
+        barPercentage:    .95,
+        categoryPercentage: .95,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} ${yLabel}` } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#a0bca6', font: { size: 8, family: 'DM Mono' }, maxRotation: 0 } },
+        y: { grid: { color: 'rgba(0,0,0,.05)' }, ticks: { color: '#a0bca6', font: { size: 8, family: 'DM Mono' } }, beginAtZero: false }
       }
-    }, 1000);
-    return () => clearInterval(t);
-  }, [fetchLive]);
-
-  const d    = live?.live || {};
-  const aqi  = live?.aqi || 0;
-  const meta = getAqiMeta(aqi);
-  const dom  = DOM_LABELS[(live?.dominant || "").toLowerCase()] || "--";
-
-  const pmTag = (v, thresh) => {
-    if (v === null) return { tag: "No data", tagColor: "#5b7d63", tagBg: "#eef4ee", warn: false };
-    if (v > thresh * 1.5) return { tag: "⚠ High",         tagColor: "#991b1b", tagBg: "#fee2e2", warn: true };
-    if (v > thresh)       return { tag: "⚠ Above limit",  tagColor: "#78350f", tagBg: "#fef3c7", warn: true };
-    return                       { tag: "✓ Good",          tagColor: "#1a5c38", tagBg: "#dcfce7", warn: false };
-  };
-
-  const statusPill = {
-    live:       { bg: "#dcfce7", color: "#1a5c38", dot: "#22c55e", txt: "Live · Updated" },
-    fetching:   { bg: "#fefce8", color: "#78350f", dot: "#f59e0b", txt: "Fetching…" },
-    error:      { bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", txt: "Demo Mode" },
-    connecting: { bg: "#fefce8", color: "#78350f", dot: "#f59e0b", txt: "Connecting…" },
-  }[status] || {};
-
-  // Merge server history with latest live reading
-  const chartData = live
-    ? [...history.filter(r => r.ts < Date.now() - 30000), { ts: Date.now(), ...d }]
-    : history;
-
-  const liveAlerts = [];
-  if (d.pm25 > 25) liveAlerts.push(`PM₂.₅ ${fmt(d.pm25)} µg/m³`);
-  if (d.pm10 > 50) liveAlerts.push(`PM₁₀ ${fmt(d.pm10)} µg/m³`);
-
-  return (
-    <div style={{ minHeight: "100vh", background: "#eef4ee", padding: "14px 16px 24px", fontFamily: "Syne, sans-serif" }}>
-      {/* Alert Banner */}
-      {liveAlerts.length > 0 && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 9, padding: "9px 14px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#991b1b" }}>
-          🚨 LIVE ALERT — {liveAlerts.join(" · ")} — above WHO threshold
-        </div>
-      )}
-      {demo && (
-        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "9px 14px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#78350f" }}>
-          ⚠ Demo Mode — {error} — deploy the Cloudflare Worker for live data
-        </div>
-      )}
-
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 38, height: 38, background: "#1a5c38", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <svg viewBox="0 0 20 20" width="20" height="20" fill="none">
-              <circle cx="10" cy="10" r="3.5" fill="white"/>
-              <circle cx="10" cy="10" r="7.5" stroke="white" strokeWidth="1.5" strokeDasharray="2.5 2"/>
-            </svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.4px" }}>Donnybrook Air Quality</div>
-            <div style={{ fontSize: 10, color: "#5b7d63", marginTop: 2 }}>Donnybrook Fire Station · EPA / DCC · Met Éireann Phoenix Park · Live via AQICN</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ background: "#fff", border: "1px solid #dce9dc", borderRadius: 9, padding: "5px 11px", textAlign: "right" }}>
-            <div style={{ fontFamily: "DM Mono, monospace", fontSize: 19, fontWeight: 500, color: "#1a5c38", letterSpacing: "1.5px", lineHeight: 1 }}>{clock}</div>
-            <div style={{ fontSize: 9, color: "#5b7d63", marginTop: 1 }}>{date}</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "7px 12px", borderRadius: 20, background: statusPill.bg, color: statusPill.color, whiteSpace: "nowrap" }}>
-            <span style={{ color: statusPill.dot }}>●</span>
-            <span>{statusPill.txt}</span>
-            {status === "live" && <span style={{ opacity: .6, fontSize: 9 }}>{cd}s</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* AQI Hero */}
-      <div style={{ background: "#1a5c38", borderRadius: 14, padding: "14px 20px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ fontFamily: "DM Mono, monospace", fontSize: 56, fontWeight: 500, color: "#fff", lineHeight: 1 }}>{aqi || "--"}</div>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "rgba(255,255,255,.5)", marginBottom: 4 }}>Air Quality Index</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{meta.label}</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,.45)", marginTop: 2 }}>AQICN · EPA Ireland · Met Éireann</div>
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,.5)" }}>Dominant pollutant</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginTop: 2 }}>{dom}</div>
-          {live?.time && <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", fontFamily: "DM Mono", marginTop: 4 }}>Sensor: {live.time.slice(0,16).replace("T"," ")}</div>}
-        </div>
-      </div>
-
-      {/* Gauges */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 10 }}>
-        {[
-          { value: d.pm25, max: 100, thresh: 25, color: "#06b6d4", label: "Fine Particulates · PM₂.₅", unit: "µg/m³" },
-          { value: d.pm10, max: 200, thresh: 50, color: "#a855f7", label: "Coarse Particulates · PM₁₀", unit: "µg/m³" },
-        ].map(g => (
-          <div key={g.label} style={{ background: "#fff", border: "1px solid #dce9dc", borderRadius: 14, padding: "12px 14px 8px", boxShadow: "0 1px 3px rgba(0,20,0,.05)" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{g.label}</div>
-            <Gauge {...g} />
-          </div>
-        ))}
-      </div>
-
-      {/* Met Cards */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginBottom: 10 }}>
-        <MetCard label="PM₂.₅" value={fmt(d.pm25, 1)} unit="µg/m³" color="#06b6d4" {...pmTag(d.pm25, 25)} />
-        <MetCard label="PM₁₀"  value={fmt(d.pm10, 1)} unit="µg/m³" color="#a855f7" {...pmTag(d.pm10, 50)} />
-        <MetCard label="Temperature" value={fmt(d.temp, 1)} unit="°C" color="#f97316"
-          tag={d.temp !== null ? (d.rain > 0 ? `🌧 ${fmt(d.rain,1)} mm/h` : "✓ No rain") : "--"}
-          tagColor="#1a5c38" tagBg="#dcfce7" warn={false} />
-        <MetCard label="Humidity" value={fmt(d.rh, 0)} unit="% R.H." color="#06b6d4"
-          tag={d.rh !== null ? (d.rh > 80 ? "High" : d.rh < 30 ? "Low" : "✓ Normal") : "--"}
-          tagColor="#1a5c38" tagBg="#dcfce7" warn={false} />
-        <MetCard label="Pressure" value={fmt(d.press, 0)} unit="hPa" color="#22c55e"
-          tag={d.press !== null ? `${d.press} hPa` : "--"} tagColor="#5b7d63" tagBg="#eef4ee" warn={false} />
-        <MetCard label="Wind" value={fmt(d.wind, 0)} unit="km/h" color="#f59e0b"
-          tag={d.wind !== null ? (d.wind > 50 ? "⚠ Strong" : d.wind > 20 ? "Breezy" : "✓ Calm") : "--"}
-          tagColor="#1a5c38" tagBg="#dcfce7" warn={false} />
-      </div>
-
-      {/* Charts */}
-      {[
-        [
-          { title: "PM₂.₅ · 24h", field: "pm25", color: "#06b6d4", unit: "µg/m³", thresh: 25 },
-          { title: "PM₁₀ · 24h",  field: "pm10", color: "#a855f7", unit: "µg/m³", thresh: 50 },
-          { title: "Temperature · 24h", field: "temp", color: "#f97316", unit: "°C", thresh: null },
-        ],
-        [
-          { title: "Humidity · 24h",  field: "rh",    color: "#06b6d4", unit: "%",    thresh: null },
-          { title: "Pressure · 24h",  field: "press", color: "#22c55e", unit: "hPa",  thresh: null },
-          { title: "Wind · 24h",      field: "wind",  color: "#f59e0b", unit: "km/h", thresh: null },
-        ],
-      ].map((row, ri) => (
-        <div key={ri} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 9, marginBottom: 9 }}>
-          {row.map(c => (
-            <ChartCard key={c.field} title={c.title} count={chartData.length}>
-              <MiniChart data={chartData} field={c.field} color={c.color} unit={c.unit} thresh={c.thresh} />
-            </ChartCard>
-          ))}
-        </div>
-      ))}
-
-      <div style={{ textAlign: "center", fontSize: 9, color: "#5b7d63", fontFamily: "DM Mono", marginTop: 8 }}>
-        Station A501121 · EPA Ireland / AQICN · Met Éireann Phoenix Park · Data refreshes every 60s
-      </div>
-    </div>
-  );
+    }
+  });
 }
+
+function renderCharts(history) {
+  drawChart('Pm25',  'pm25',  history, 'µg/m³');
+  drawChart('Pm10',  'pm10',  history, 'µg/m³');
+  drawChart('Temp',  'temp',  history, '°C');
+  drawChart('Rh',    'rh',    history, '%');
+  drawChart('Press', 'press', history, 'hPa');
+  drawChart('Wind',  'wind',  history, 'km/h');
+}
+
+// ── RENDER UI ─────────────────────────────
+function renderUI(r) {
+  const live    = r.live || {};
+  const pm25    = live.pm25  ?? null;
+  const pm10    = live.pm10  ?? null;
+  const temp    = live.temp  ?? null;
+  const press   = live.press ?? null;
+  const rainfall= live.rain  ?? null;
+  const rh      = live.rh    ?? null;
+  const wind    = live.wind  ?? null;
+  const aqi     = r.aqi      || 0;
+  const dom     = (r.dominant || '').toLowerCase();
+
+  // AQI hero
+  document.getElementById('aqiNum').textContent = aqi;
+  const [cat, cls, col] = aqiMeta(aqi);
+  document.getElementById('aqiCat').textContent = cat;
+  document.getElementById('aqiDom').textContent = DOM_LABELS[dom] || dom.toUpperCase() || '--';
+  if (r.time) document.getElementById('aqiTime').textContent = 'Sensor: ' + r.time;
+
+  // Cards
+  setCard('Pm25',  pm25,  'µg/m³', ...pmTag(pm25, 25));
+  setCard('Pm10',  pm10,  'µg/m³', ...pmTag(pm10, 50));
+  const rainTag = rainfall !== null ? `🌧 ${rainfall.toFixed(1)} mm/h` : '✓ No rain';
+  setCard('Temp',  temp,  '°C',    temp !== null ? rainTag : 'No data', 'n');
+  setCard('Rh',    rh,    '%',     rh !== null ? (rh > 80 ? 'High' : rh < 30 ? 'Low' : '✓ Normal') : 'No data', 'n');
+  setCard('Press', press, 'hPa',   press !== null ? `${press} hPa` : 'No data', 'n');
+  setCard('Wind',  wind,  'km/h',  wind !== null ? (wind > 50 ? '⚠ Strong' : wind > 20 ? 'Breezy' : '✓ Calm') : 'No data', 'n');
+
+  // Card borders for PM alerts
+  document.getElementById('mcPm25').className = 'mc' + (pm25 > 37.5 ? ' danger' : pm25 > 25 ? ' warn' : '');
+  document.getElementById('mcPm10').className = 'mc' + (pm10 > 75  ? ' danger' : pm10 > 50  ? ' warn' : '');
+
+  // Live alert banner
+  const alerts = [];
+  if (pm25 !== null && pm25 > 25) alerts.push(`PM₂.₅ ${pm25} µg/m³`);
+  if (pm10 !== null && pm10 > 50) alerts.push(`PM₁₀ ${pm10} µg/m³`);
+  if (alerts.length) banner('alert', '🚨 LIVE ALERT — ' + alerts.join(' · ') + ' above WHO threshold');
+  else if (!demo) clearBanner();
+
+  // Merge server history with current reading for charts
+  const now = { ts: Date.now(), pm25, pm10, temp, rh, press, wind };
+  const history = [..._history.filter(r => r.ts < now.ts - 30000), now];
+  renderCharts(history);
+}
+
+// ── DEMO ──────────────────────────────────
+function showDemo(reason) {
+  demo = true;
+  banner('demo', '⚠ Demo Mode — ' + reason + '. Deploy the Cloudflare Worker to load live data.');
+  setStatus('Demo Mode', '#f59e0b');
+  renderUI({ aqi:18, dominant:'pm25', time: new Date().toISOString(), live:{ pm25:8, pm10:12, temp:14, press:1008, rain:0, wind:11, rh:72 } });
+}
+
+// ── FETCH ─────────────────────────────────
+async function update() {
+  try {
+    setStatus('Fetching…', '#f59e0b');
+
+    // Single fetch — Worker handles all data sources + KV history
+    const aqRes = await fetch(API);
+    if (!aqRes.ok) throw new Error('HTTP ' + aqRes.status);
+    const aqJson = await aqRes.json();
+    if (aqJson.error) throw new Error(aqJson.error);
+    renderUI(aqJson);
+    demo = false; clearBanner();
+    setStatus('Live · Updated', '#22c55e');
+    cd = 60;
+  } catch(e) {
+    console.warn('[AQ]', e.message);
+    const history = loadHistory();
+    if (history.length) renderCharts(history);
+    showDemo(e.message);
+  }
+}
+
+// ── COUNTDOWN ─────────────────────────────
+setInterval(() => {
+  cd--;
+  if (cd <= 0) { cd = 60; update(); }
+  if (!demo) document.getElementById('cdTxt').textContent = `Auto-refresh in ${cd}s`;
+}, 1000);
+
+// ── INIT ──────────────────────────────────
+(async () => {
+  await loadHistory();
+  if (_history.length) renderCharts(_history);
+  update();
+})();
+</script>
+</body>
+</html>
+
